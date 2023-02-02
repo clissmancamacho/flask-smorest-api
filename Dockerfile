@@ -17,4 +17,6 @@ CMD python -m debugpy --listen 0.0.0.0:5678 --wait-for-client  -m flask run -h 0
 FROM base as prod
 
 # CMD ["flask", "run", "--host", "0.0.0.0", "--port", "5000"]
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "app:create_app()"]
+# CMD ["gunicorn", "--bind", "0.0.0.0:80", "app:create_app()"]
+
+CMD ["/bin/bash", "docker-entrypoint.sh"]
