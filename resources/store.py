@@ -5,7 +5,7 @@ from db import db
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from models import StoreModel
 
-blp = Blueprint("stores", __name__, description="Operations on stores")
+blp = Blueprint("Stores", __name__, description="Operations on stores")
 
 
 @blp.route("/store/<int:store_id>")

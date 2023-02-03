@@ -1,7 +1,19 @@
 FROM python:3.10 as base
+EXPOSE 8000
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+RUN pip install -r requirements.txt
 COPY . .
 
-CMD ["/bin/bash", "docker-entrypoint.sh"]
+###########START NEW IMAGE : DEBUGGER ###################
+FROM base as debug
+RUN pip install debugpy
+
+WORKDIR /app/
+CMD python -m debugpy --listen 0.0.0.0:5678 --wait-for-client  -m flask run -h 0.0.0.0 -p 8000
+
+###########START NEW IMAGE: PRODUCTION ###################
+FROM base as prod
+
+CMD ["flask", "run", "--host", "0.0.0.0", "--port", "8000"]
+
