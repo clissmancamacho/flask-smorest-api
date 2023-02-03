@@ -1,8 +1,8 @@
 import os
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, current_app
 from flask_smorest import Api
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, get_jwt_identity
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 
@@ -46,6 +46,14 @@ def create_app(db_url=None):
     #     if identity == 1:
     #         return {"is_admin": True}
     #     return {"is_admin": False}
+
+    # here define callback function which returns current user model
+
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        #  callback for fetching authenticated user from db
+        identity = jwt_data["sub"]
+        return models.UserModel.query.filter_by(id=identity).one_or_none()
 
     @jwt.token_in_blocklist_loader
     def check_if_token_in_blocklist(jwt_header, jwt_payload):
@@ -91,12 +99,12 @@ def create_app(db_url=None):
         )
 
     @jwt.unauthorized_loader
-    def missing_token_callback(error):
+    def missing_token_callback(error='Request does not contain an access token.'):
         return (
             jsonify(
                 {
-                    "description": "Request does not contain an access token.",
-                    "error": "authorization_required",
+                    "description": error,
+                    "error": "unauthorized",
                 }
             ),
             401,

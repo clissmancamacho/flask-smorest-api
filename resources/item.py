@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from db import db
 from models import ItemModel
+from rbac import check_access
 from schemas import ItemSchema, ItemUpdateSchema
 
 blp = Blueprint("Items", __name__, description="Operations on items")
@@ -19,11 +20,8 @@ class Item(MethodView):
         return item
 
     @jwt_required()
+    @check_access(['SuperAdmin'])
     def delete(self, item_id):
-        # jwt = get_jwt()
-        # if not jwt.get("is_admin"):
-        #     abort(403, message="Admin privilege required.")
-
         item = ItemModel.query.get_or_404(item_id)
         db.session.delete(item)
         db.session.commit()
