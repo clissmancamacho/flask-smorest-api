@@ -4,13 +4,14 @@ from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from passlib.hash import pbkdf2_sha256 as sha256
 from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, get_jwt, jwt_required
-from urllib.parse import urlencode
 
 from blocklist import BLOCKLIST
 from db import db
+from cache import cache
 from models import UserModel
 from schemas import UserSchema
 from utils import oauth2_claveunica
+
 
 blp = Blueprint("Users", __name__, description="Operations on users")
 
@@ -18,19 +19,11 @@ blp = Blueprint("Users", __name__, description="Operations on users")
 @blp.route("/oauth")
 class UserOAuth(MethodView):
     def get(self):
-        auth_request_data = {
-            'client_id': os.getenv('CLAVE_UNICA_CLIENT_ID'),
-            'redirect_uri': os.getenv('CLAVE_UNICA_REDIRECT_URI'),
-            # 'state': oauth2_claveunica.generate_state(),
-            'state': 'asdasdas',
-            'response_type': 'code',
-            'scope': 'openid run name email',
-            'prompt': 'login'
-        }
-
-        auth_url_endpoint = os.getenv('CLAVEUNICA_AUTH_ENDPOINT')
-        query_string = urlencode(auth_request_data)
-        url = f'{auth_url_endpoint}?{query_string}'
+        state = oauth2_claveunica.generate_state()
+        cache.set(
+            state, {'remote_addr': request.remote_addr}, 1800)
+        url = oauth2_claveunica.get_url_login_claveunica(os.getenv('CLAVEUNICA_AUTH_ENDPOINT'), os.getenv(
+            'CLAVE_UNICA_CLIENT_ID'), os.getenv('CLAVE_UNICA_REDIRECT_URI'), state)
 
         return redirect(url)
 
@@ -40,6 +33,9 @@ class UserOAuthCallback(MethodView):
     def get(self):
         authorization_code = request.args.get('code')
         state = request.args.get('state')
+        cache_data = cache.get(state)
+        if cache_data is None:
+            abort(400, message="Expired State. Please, try again.")
 
         access_token_json = oauth2_claveunica.request_authorization_code(
             'https://accounts.claveunica.gob.cl/openid/token',
@@ -49,6 +45,7 @@ class UserOAuthCallback(MethodView):
             authorization_code,
             state
         )
+
         access_token = access_token_json.get('access_token')
         # obtener info usuario
         info_user_json = oauth2_claveunica.request_info_user(
